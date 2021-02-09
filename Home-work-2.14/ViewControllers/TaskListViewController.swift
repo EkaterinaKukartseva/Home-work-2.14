@@ -16,6 +16,7 @@ class TaskListViewController: UITableViewController {
         super.viewDidLoad()
         
         taskLists = StorageManager.shared.realm.objects(TaskList.self)
+        navigationItem.leftBarButtonItem = editButtonItem
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -28,6 +29,11 @@ class TaskListViewController: UITableViewController {
     }
     
     @IBAction func sortingList(_ sender: UISegmentedControl) {
+        taskLists = sender.selectedSegmentIndex == 0
+            ? taskLists.sorted(byKeyPath: "name", ascending: true)
+            : taskLists.sorted(byKeyPath: "date", ascending: false)
+        
+        tableView.reloadData()
     }
     
     // MARK: - Table view data source
@@ -65,7 +71,16 @@ class TaskListViewController: UITableViewController {
             isDone(true)
         }
         
-        return UISwipeActionsConfiguration(actions: [editAction, deleteAction])
+        let doneAction = UIContextualAction(style: .normal, title: "Done") { (_, _, isDone) in
+            StorageManager.shared.done(taskList: taskList)
+            tableView.reloadRows(at: [indexPath], with: .automatic)
+            isDone(true)
+        }
+        
+        editAction.backgroundColor = .orange
+        doneAction.backgroundColor = .green
+        
+        return UISwipeActionsConfiguration(actions: [doneAction, editAction, deleteAction])
     }
     
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -79,7 +94,9 @@ class TaskListViewController: UITableViewController {
 extension TaskListViewController {
     
     private func showALert(taskList: TaskList? = nil, completion: (() -> Void)? = nil) {
-        let alert = AlertController(title: "New List", message: "Please insert new value", preferredStyle: .alert)
+        let title = taskList != nil ? "Edit List" : "New List"
+        
+        let alert = AlertController(title: title, message: "Please insert new value", preferredStyle: .alert)
         
         alert.action(with: taskList) { newValue in
             if let taskList = taskList, let completion = completion {
